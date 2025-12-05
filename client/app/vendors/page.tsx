@@ -4,7 +4,7 @@ import VendorsList from "../components/VenodrsList";
 export default function Vendors(){
 
     return (
-        <div className="bg-[white] h-screen">
+        <div className="bg-[white] h-screen pt-2">
           <VendorsList/>
         </div>
     )

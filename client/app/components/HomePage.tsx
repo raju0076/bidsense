@@ -2,22 +2,44 @@
 
 import { useState } from "react";
 import RfpModal from "./RfpModal";
+import { toast } from "react-toastify";
 
 export default function HomePage() {
   const [input, setInput] = useState("");
   const [openModal, setOpenModal] = useState(false);
+  const [rfpData, setRfpData] = useState(null);
 
-  const handleGenerate = () => {
-    if (!input.trim()) return;
+const handleGenerate = async () => {
+  if (!input.trim()) return;
+
+  try {
+    const res = await fetch("http://localhost:3001/api/create-rfp", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: input
+      })
+    });
+
+    const data = await res.json();
+     setRfpData(data.rfp); 
+    console.log("AI RFP:", data);
+    toast.success("RFP created successfully!")
     setOpenModal(true);
-  };
+
+  } catch (err) {
+    console.error("Error generating RFP:", err);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white flex flex-col">
       
-      {openModal && (
-        <RfpModal text={input} onClose={() => setOpenModal(false)} />
-      )}
+      {openModal && <RfpModal rfp={rfpData} onClose={() => setOpenModal(false)} />}
+
 
       <div className="flex flex-col justify-center items-center flex-1 text-center px-6">
         
