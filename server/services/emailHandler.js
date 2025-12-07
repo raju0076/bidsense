@@ -1,3 +1,4 @@
+
 export async function handleIncomingEmail(email) {
   console.log("--------------- NEW EMAIL ----------------");
   console.log("FROM:", email.from?.text);
@@ -11,3 +12,6 @@ export async function handleIncomingEmail(email) {
 
   console.log("------------------------------------------");
 }
+
+
+

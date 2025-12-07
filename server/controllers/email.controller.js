@@ -12,6 +12,7 @@ import parseProposalWithAI from "../services/ai.service.js";
 import { Vendor } from "../models/vendor.model.js";
 import path from "path";
 import fs from "fs";
+import { RfpEmailLog } from "../models/inboxLog.model.js";
 
 
 dotenv.config()
@@ -100,82 +101,90 @@ function extractRfpId(subject) {
   return match ? match[1] : null;
 }
 
-
 export const fetchUnreadEmails = async () => {
-  try {
-    console.log("IMAP: Connecting...");
-    const connection = await imaps.connect(imapConfig);
+  let totalUnread = 0;
+  let rfpMatched = 0;
+  let proposalsCreated = 0;
+  let skipped = 0;
 
+  try {
+    const connection = await imaps.connect(imapConfig);
     await connection.openBox("INBOX", true);
-    console.log("IMAP: Inbox opened");
 
     const since = new Date();
     since.setDate(since.getDate() - 1);
 
     const searchCriteria = ["UNSEEN", ["SINCE", since]];
-
     const fetchOptions = {
       bodies: ["HEADER.FIELDS (FROM SUBJECT DATE)"],
       struct: true,
-      markSeen: false
+      markSeen: false,
     };
 
-    console.log("IMAP: Searching...");
     const messages = await connection.search(searchCriteria, fetchOptions);
-    console.log(`IMAP: Found ${messages.length} messages`);
+    totalUnread = messages.length;
+    console.log(totalUnread)
 
     for (const item of messages) {
-      const headerPart = item.parts.find(p =>
-        p.which.includes("HEADER")
-      );
-
-      if (!headerPart) continue;
+      const headerPart = item.parts.find(p => p.which.includes("HEADER"));
+      if (!headerPart) {
+        skipped++;
+        continue;
+      }
 
       const headers = headerPart.body || {};
-
       const subject =
         headers.subject?.[0] ||
         headers.Subject?.[0] ||
         "";
 
       if (!isRfpEmail(subject)) {
-        console.log("⏭ Skipped non-RFP email:", subject);
+        skipped++;
         continue;
       }
+
+      rfpMatched++;
 
       const rfpId = extractRfpId(subject);
       if (!rfpId) {
-        console.log("⚠ RFP email but invalid RFP ID:", subject);
+        await RfpEmailLog.create({
+          subject,
+          status: "INVALID_RFP",
+          receivedAt: new Date(),
+        });
+        skipped++;
         continue;
       }
 
-      console.log(`✅ Processing RFP email: ${subject}`);
-
       const fullMessages = await connection.search(
         [["UID", item.attributes.uid]],
-        {
-          bodies: [""],
-          struct: true,
-          markSeen: false
-        }
+        { bodies: [""], struct: true, markSeen: false }
       );
 
-      if (!fullMessages.length) continue;
+      if (!fullMessages.length) {
+        skipped++;
+        continue;
+      }
 
-      const fullEmailPart = fullMessages[0].parts.find(
-        p => p.which === ""
-      );
-
-      if (!fullEmailPart) continue;
+      const fullEmailPart = fullMessages[0].parts.find(p => p.which === "");
+      if (!fullEmailPart) {
+        skipped++;
+        continue;
+      }
 
       const parsed = await simpleParser(fullEmailPart.body);
-
       const vendorEmail = parsed.from?.value?.[0]?.address;
-
+ console.log("📤 From vendor email:", vendorEmail);
       const vendor = await Vendor.findOne({ email: vendorEmail });
-
       if (!vendor) {
-        console.log("⚠ Unknown vendor replied:", vendorEmail);
+        await RfpEmailLog.create({
+          subject,
+          fromEmail: vendorEmail,
+          rfpId,
+          status: "UNKNOWN_VENDOR",
+          receivedAt: new Date(),
+        });
+        skipped++;
         continue;
       }
 
@@ -184,24 +193,21 @@ export const fetchUnreadEmails = async () => {
         vendor: {
           id: vendor._id,
           name: vendor.name,
-          email: vendor.email
+          email: vendor.email,
         },
         responseContent: {
           rawText: parsed.text || "",
           hasImages: parsed.attachments?.some(a =>
             a.contentType.startsWith("image")
           ),
-          hasAttachments: parsed.attachments?.length > 0
+          hasAttachments: parsed.attachments?.length > 0,
         },
-        status: "RECEIVED"
+        status: "RECEIVED",
       });
 
-      const uploadDir = path.join(
-        "uploads",
-        "proposals",
-        String(proposal._id)
-      );
+      proposalsCreated++;
 
+      const uploadDir = path.join("uploads", "proposals", String(proposal._id));
       fs.mkdirSync(uploadDir, { recursive: true });
 
       for (const file of parsed.attachments || []) {
@@ -211,16 +217,51 @@ export const fetchUnreadEmails = async () => {
         );
       }
 
-      parseProposalWithAI(proposal._id);
+      await RfpEmailLog.create({
+        subject,
+        fromEmail: vendorEmail,
+        rfpId,
+        proposalId: proposal._id,
+        status: "PROPOSAL_CREATED",
+        receivedAt: new Date(),
+      });
 
+      parseProposalWithAI(proposal._id);
       await connection.addFlags(item.attributes.uid, ["\\Seen"]);
     }
 
-
-
     connection.end();
-    console.log("IMAP: Done");
+  console.log("✅ proposalsCreated:", proposalsCreated);
+    return {
+      totalUnread,
+      rfpMatched,
+      proposalsCreated,
+      skipped,
+    };
   } catch (err) {
-    console.error("IMAP fetch error:", err.message);
+    throw err;
+  }
+};
+
+
+
+
+
+export const getRfpEmailLogs = async (req, res) => {
+  try {
+    const logs = await RfpEmailLog.find()
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: logs,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch RFP email history",
+    });
   }
 };

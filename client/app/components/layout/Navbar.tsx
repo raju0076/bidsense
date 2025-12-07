@@ -18,8 +18,8 @@ export default function Navbar() {
         <Link href="/vendors" className="hover:text-white">
           Vendors
         </Link>
-        <Link href="/compare/demo" className="hover:text-white">
-          Compare
+        <Link href="/proposals/inbox" className="hover:text-white">
+          Proposals
         </Link>
         <Link href="/docs" className="hover:text-white">
           Docs

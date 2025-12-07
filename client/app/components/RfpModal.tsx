@@ -68,7 +68,7 @@ export default function RfpModal({
     }
 
     try {
-      const assignRes = await fetch(`http://localhost:3001/api/rfp/${rfp._id}/select-vendors`, {
+      const assignRes = await fetch(`http://localhost:3001/api/select-vendors/${rfp._id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vendorIds: selectedIds }),
@@ -80,7 +80,7 @@ export default function RfpModal({
         return;
       }
 
-      const sendRes = await fetch(`http://localhost:3001/api/rfp/${rfp._id}/send`, {
+      const sendRes = await fetch(`http://localhost:3001/api/email/send-mail/${rfp._id}`, {
         method: "POST",
       });
 
