@@ -5,6 +5,7 @@ dotenv.config()
 import cors from "cors"
 import RFPRouter from "./routes/ai.routes.js"
 import VendorRouter from "./routes/vendor.routes.js"
+import EmailRouter from "./routes/email.routes.js"
 const app = express()
 
 app.use(cors());
@@ -15,7 +16,7 @@ app.use(express.json())
 
 app.use('/api',RFPRouter)
 app.use('/api/vendor',VendorRouter)
-
+app.use('/api/email',EmailRouter)
 
 
 connectDB()

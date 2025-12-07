@@ -17,7 +17,13 @@ const rfpSchema = new mongoose.Schema({
     warranty: String,
     notes: String
   },
-  status: { type: String, default: "draft" }
+  status: { type: String, default: "draft" },
+  assignedVendors: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
+    },
+  ],
 }, { timestamps: true });
 
 export const RFP = mongoose.model("RFP",rfpSchema)

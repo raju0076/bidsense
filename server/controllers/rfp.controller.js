@@ -1,6 +1,5 @@
-
-import express from "express";
 import { RFP } from "../models/rfp.model.js";
+
 
 
 export const AssignVendors = async (req, res) => {
@@ -18,9 +17,8 @@ export const AssignVendors = async (req, res) => {
       message: "Vendors assigned successfully",
       rfp,
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to assign vendors" });
   }
-}
+};
