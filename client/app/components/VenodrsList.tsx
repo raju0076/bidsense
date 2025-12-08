@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import VendorCreateModal from "./VendorCreateModal";
+import { BASE_URL } from "../apiEndpoints";
 
 type Vendor = {
   _id: string;
@@ -17,7 +18,7 @@ export default function VendorsList() {
   const [openModal, setOpenModal] = useState(false);
 
   const fetchVendors = async () => {
-    const res = await fetch("http://localhost:3001/api/vendor/getAll-vendors");
+    const res = await fetch(`${BASE_URL}api/vendor/getAll-vendors`);
     const data = await res.json();
     if (data.success) setVendors(data.vendors);
   };

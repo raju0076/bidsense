@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-toastify";
+import { BASE_URL } from "../apiEndpoints";
 
 interface VendorCreateModalProps {
   onClose: () => void;
@@ -20,7 +21,7 @@ export default function VendorCreateModal({ onClose, refresh }: VendorCreateModa
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:3001/api/vendor/create-vendors", {
+      const res = await fetch(`${BASE_URL}api/vendor/create-vendors`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

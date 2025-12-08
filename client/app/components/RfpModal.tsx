@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { BASE_URL } from "../apiEndpoints";
 
 type Vendor = {
   _id: string;
@@ -55,7 +56,7 @@ export default function RfpModal({
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("http://localhost:3001/api/vendor/getAll-vendors");
+      const res = await fetch(`${BASE_URL}api/vendor/getAll-vendors`);
       const data = await res.json();
       setVendors(data.vendors || []);
     })();
@@ -68,7 +69,7 @@ export default function RfpModal({
     }
 
     try {
-      const assignRes = await fetch(`http://localhost:3001/api/select-vendors/${rfp._id}`, {
+      const assignRes = await fetch(`${BASE_URL}api/select-vendors/${rfp._id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vendorIds: selectedIds }),
@@ -80,7 +81,7 @@ export default function RfpModal({
         return;
       }
 
-      const sendRes = await fetch(`http://localhost:3001/api/email/send-mail/${rfp._id}`, {
+      const sendRes = await fetch(`${BASE_URL}api/email/send-mail/${rfp._id}`, {
         method: "POST",
       });
 

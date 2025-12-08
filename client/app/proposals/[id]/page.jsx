@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import {BASE_URL} from "../../apiEndpoints"
 
 export default function ProposalDetails() {
   const { id } = useParams();
@@ -12,7 +13,7 @@ export default function ProposalDetails() {
   useEffect(() => {
     if (!id) return;
 
-    fetch(`http://localhost:3001/api/proposals/single-proposal/${id}`)
+    fetch(`${BASE_URL}api/proposals/single-proposal/${id}`)
       .then((res) => res.json())
       .then((json) => setProposal(json?.data || null))
       .finally(() => setLoading(false));

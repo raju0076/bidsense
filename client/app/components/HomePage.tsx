@@ -3,6 +3,7 @@
 import { useState } from "react";
 import RfpModal from "./RfpModal";
 import { toast } from "react-toastify";
+import { BASE_URL } from "../apiEndpoints";
 
 export default function HomePage() {
   const [input, setInput] = useState("");
@@ -13,7 +14,7 @@ const handleGenerate = async () => {
   if (!input.trim()) return;
 
   try {
-    const res = await fetch("http://localhost:3001/api/create-rfp", {
+    const res = await fetch(`${BASE_URL}api/create-rfp`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json"
@@ -28,6 +29,7 @@ const handleGenerate = async () => {
     console.log("AI RFP:", data);
     toast.success("RFP created successfully!")
     setOpenModal(true);
+    setInput("")
 
   } catch (err) {
     console.error("Error generating RFP:", err);

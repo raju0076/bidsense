@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BASE_URL } from "../apiEndpoints";
 
 type RFP = {
   _id: string;
@@ -20,7 +21,7 @@ export default function RfpListPage() {
   useEffect(() => {
     const fetchRfps = async () => {
       try {
-        const res = await fetch("http://localhost:3001/api/rfp/all");
+        const res = await fetch(`${BASE_URL}api/rfp/all`);
         const data = await res.json();
 
         if (data.success) {

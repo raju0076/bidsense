@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { BASE_URL } from "@/app/apiEndpoints";
 
 
 type AIComparisonRow = {
@@ -37,7 +38,7 @@ export default function ComparePage() {
         console.log("Fetching AI comparison for:", rfpId);
 
         const res = await axios.post(
-          `http://localhost:3001/api/ai/compare-proposals/${rfpId}`,
+          `${BASE_URL}api/ai/compare-proposals/${rfpId}`,
           {},
           {
             headers: { "Content-Type": "application/json" },

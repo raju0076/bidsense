@@ -1,5 +1,6 @@
 "use client";
 
+import { BASE_URL } from "@/app/apiEndpoints";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -107,14 +108,14 @@ console.log(vendors,"vendors")
 
   useEffect(() => {
     if (!id) return;
-    fetch(`http://localhost:3001/api/rfp/${id}`)
+    fetch(`${BASE_URL}api/rfp/${id}`)
       .then((r) => r.json())
       .then((d) => setRfp(d.data))
       .catch(console.error);
   }, [id]);
 
    const fetchVendors = async () => {
-    const res = await fetch("http://localhost:3001/api/vendor/getAll-vendors");
+    const res = await fetch(`${BASE_URL}api/vendor/getAll-vendors`);
     const data = await res.json();
     if (data.success) setVendors(data.vendors);
   };
@@ -126,13 +127,12 @@ console.log(vendors,"vendors")
 
   useEffect(() => {
     if (!id) return;
-    fetch(`http://localhost:3001/api/proposals/${id}`)
+    fetch(`${BASE_URL}api/proposals/${id}`)
       .then((r) => r.json())
       .then((d) => setProposals(d.data || []))
       .catch(console.error);
   }, [id]);
 
-  /* ---------- Selection Logic ---------- */
 
   const toggleVendor = (vendorId: string) => {
     setSelectedVendorIds((prev) =>
@@ -163,7 +163,7 @@ console.log(vendors,"vendors")
   try {
     // 1️⃣ Assign vendors
     const assignRes = await fetch(
-      `http://localhost:3001/api/select-vendors/${id}`,
+      `${BASE_URL}api/select-vendors/${id}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -179,7 +179,7 @@ console.log(vendors,"vendors")
 
     // 2️⃣ Send emails
     const sendRes = await fetch(
-      `http://localhost:3001/api/email/send-mail/${id}`,
+      `${BASE_URL}api/email/send-mail/${id}`,
       { method: "POST" }
     );
 

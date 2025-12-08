@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BASE_URL } from "@/app/apiEndpoints";
 
 export default function InboxPage() {
   const [emails, setEmails] = useState<any[]>([]);
@@ -14,7 +15,7 @@ export default function InboxPage() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:3001/api/email/rfp-email-logs");
+      const res = await fetch(`${BASE_URL}api/email/rfp-email-logs`);
 
       if (!res.ok) {
         throw new Error("Failed to load inbox");
@@ -37,7 +38,7 @@ export default function InboxPage() {
 
     try {
       const res = await fetch(
-        "http://localhost:3001/api/email/fetch-emails",
+        `${BASE_URL}api/email/fetch-emails`,
         { method: "POST" }
       );
 
@@ -47,7 +48,7 @@ export default function InboxPage() {
 
       await loadInbox();
     } catch (err: any) {
-      console.error("❌ syncInbox error:", err);
+      console.error(" syncInbox error:", err);
       setError(err.message || "Failed to sync emails");
     } finally {
       setSyncing(false);
