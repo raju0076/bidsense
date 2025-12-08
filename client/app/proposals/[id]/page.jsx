@@ -2,7 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {BASE_URL} from "../../apiEndpoints"
+import { BASE_URL } from "@/app/apiEndpoints";
+
+
 
 export default function ProposalDetails() {
   const { id } = useParams();
