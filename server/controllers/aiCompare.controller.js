@@ -1,37 +1,34 @@
-import OpenAI from "openai";
 import { Proposal } from "../models/proposal.model.js";
 import dotenv from "dotenv"
 dotenv.config()
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export const aiCompareProposals = async (req, res) => {
-    try {
-        const { rfpId } = req.params;
+  try {
+    const { rfpId } = req.params;
 
-        const proposals = await Proposal.find({ rfpId })
-            .populate("vendor", "name email");
+    const proposals = await Proposal.find({ rfpId })
+      .populate("vendor", "name email");
 
-        if (proposals.length < 2) {
-            return res.status(400).json({
-                success: false,
-                message: "At least two proposals required for comparison",
-            });
-        }
+    if (proposals.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "At least two proposals required for comparison",
+      });
+    }
 
-        const proposalSummaries = proposals.map((p) => ({
-            vendorName: p.vendor.name,
-            totalPrice: p.pricingSummary?.grandTotal || "Not specified",
-            deliveryDays: p.commercialTerms?.deliveryDays || "Not specified",
-            warranty: p.commercialTerms?.warranty || "Not specified",
-            paymentTerms: p.commercialTerms?.paymentTerms || "Not specified",
-            confidenceScore: p.aiExtraction?.confidenceScore || 0,
-        }));
+    const proposalSummaries = proposals.map((p) => ({
+      vendorName: p.vendor?.name,
+      totalPrice: p.pricingSummary?.grandTotal || "Not specified",
+      deliveryDays: p.commercialTerms?.deliveryDays || "Not specified",
+      warranty: p.commercialTerms?.warranty || "Not specified",
+      paymentTerms: p.commercialTerms?.paymentTerms || "Not specified",
+      confidenceScore: p.aiExtraction?.confidenceScore || 0,
+    }));
 
-
-        const prompt = `
+    const prompt = `
 You are a procurement evaluation AI.
 
 Below are vendor proposals for the same RFP.
@@ -52,7 +49,7 @@ Return STRICT JSON in this format only:
       "vendorName": string,
       "strengths": string[],
       "risks": string[],
-      "overallScore": number (0–10)
+      "overallScore": number
     }
   ]
 }
@@ -61,23 +58,27 @@ Proposals:
 ${JSON.stringify(proposalSummaries, null, 2)}
 `;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4.1-mini",
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.2,
-        });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+    });
 
-        const aiResult = JSON.parse(completion.choices[0].message.content);
+    const result = await model.generateContent(prompt);
 
-        res.json({
-            success: true,
-            data: aiResult,
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({
-            success: false,
-            message: "AI comparison failed",
-        });
-    }
+    const text = result.response.text();
+
+    // Gemini sometimes wraps JSON in ```json
+    const cleanJson = text.replace(/```json|```/g, "").trim();
+    const aiResult = JSON.parse(cleanJson);
+
+    res.json({
+      success: true,
+      data: aiResult,
+    });
+  } catch (error) {
+    console.error("❌ Gemini AI Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "AI comparison failed",
+    });
+  }
 };

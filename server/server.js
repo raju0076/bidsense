@@ -9,7 +9,10 @@ import EmailRouter from "./routes/email.routes.js"
 import ProposalRouter from "./routes/proposal.routes.js"
 const app = express()
 
-app.use(cors());
+app.use(cors({
+  origin: "*",       
+}));
+
 
 
 

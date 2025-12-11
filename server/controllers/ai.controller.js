@@ -1,46 +1,78 @@
 
-import OpenAI from "openai";
 import { RFP } from "../models/rfp.model.js";
 import dotenv from "dotenv"
 
 dotenv.config();
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 export const createRFP = async (req, res) => {
-  const { text } = req.body;
+  console.log("➡️ createRFP API called");
 
-  if (!text) return res.status(400).json({ error: "Text is required" });
+  const { text } = req.body;
+  console.log("📥 Request body text:", text);
+
+  console.log(
+    "🔑 GEMINI KEY PREFIX:",
+    process.env.GEMINI_API_KEY
+      ? process.env.GEMINI_API_KEY.slice(0, 15)
+      : "❌ NO KEY FOUND"
+  );
+
+  if (!text) {
+    console.log("❌ Text missing in request");
+    return res.status(400).json({ error: "Text is required" });
+  }
 
   try {
     const prompt = `
-      Extract structured RFP details from this procurement text.
-      Return ONLY valid JSON with these fields:
-      title, items (name, quantity, specs), budget, deliveryDays, paymentTerms, warranty.
+Extract structured RFP details from this procurement text.
+Return ONLY valid JSON with these fields:
+title, items (name, quantity, specs), budget, deliveryDays, paymentTerms, warranty.
 
-      Do NOT include backticks, markdown, comments, or explanations.
-      Respond with pure JSON only.
+Rules:
+- Output ONLY pure JSON
+- No markdown
+- No backticks
+- No explanations
 
-      Text: ${text}
-    `;
+Text: ${text}
+`;
 
-    const aiResponse = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { 
-          role: "system", 
-          content: "Respond ONLY with raw JSON. No code blocks, no backticks, no markdown." 
-        },
-        { role: "user", content: prompt }
-      ]
+    console.log("🧠 Sending prompt to Gemini...");
+    console.log("Prompt preview:", prompt.slice(0, 200));
+
+    const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
     });
 
-    let content = aiResponse.choices[0].message.content.trim();
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+
+    let content = response.text();
+    console.log("📄 Gemini raw response:", content);
+
+    if (!content) {
+      console.log("❌ Gemini returned empty content");
+      throw new Error("Empty Gemini response");
+    }
 
     content = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    console.log("🧹 Cleaned JSON string:", content);
 
-    const structured = JSON.parse(content);
+    let structured;
+    try {
+      structured = JSON.parse(content);
+    } catch (err) {
+      console.error("❌ JSON parse failed. Raw content:", content);
+      throw new Error("Invalid JSON from Gemini");
+    }
 
+    console.log("✅ Parsed structured JSON:", structured);
+
+    console.log("💾 Saving RFP to database...");
     const rfp = await RFP.create({
       title: structured.title,
       description: text,
@@ -48,13 +80,20 @@ export const createRFP = async (req, res) => {
       status: "draft"
     });
 
+    console.log("✅ RFP saved successfully:", rfp._id);
+
     return res.json({ success: true, rfp });
 
   } catch (err) {
-    console.error("AI RFP Creation Error:", err);
-    res.status(500).json({ error: "Failed to generate RFP" });
+    console.error("❌ Gemini RFP Creation Error:", err.message);
+    console.error(err.stack);
+    return res.status(500).json({
+      error: "Failed to generate RFP",
+      details: err.message
+    });
   }
 };
+
 
 
 export const getAllRFP = async (req, res) => {

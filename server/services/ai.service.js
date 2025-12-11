@@ -1,11 +1,9 @@
-import OpenAI from "openai";
 import { Proposal } from "../models/proposal.model.js";
 import dotenv from "dotenv";
 dotenv.config()
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_KEY
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 async function parseProposalWithAI(proposalId) {
   console.log(`🧠 AI parsing started for proposal ${proposalId}`);
@@ -23,7 +21,6 @@ that matches a predefined MongoDB schema.
 Return STRICT JSON ONLY — no explanations.
 
 Schema to follow:
-
 {
   "items": [{
     "name": string,
@@ -54,70 +51,89 @@ Schema to follow:
 }
 
 Rules:
-- Use INR as currency.
-- If any value is missing, set it to null.
-- Extract only factual data from the text.
-- Return valid JSON only.
+- Use INR as currency
+- If value is missing, set it to null
+- Extract only factual data
+- Output valid JSON only
+- No markdown, no backticks
 
 Vendor Proposal Text:
 """${proposal.responseContent.rawText}"""
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0
-  });
-
-  let aiResult;
   try {
-    aiResult = JSON.parse(response.choices[0].message.content);
-  } catch (e) {
-    console.error("❌ AI returned invalid JSON");
-    return;
+    console.log("🧠 Sending proposal parsing prompt to Gemini...");
+
+    const model = genAI.getGenerativeModel({
+     model: "gemini-2.0-flash"
+    });
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+
+    let content = response.text();
+    console.log("📄 Gemini raw response:", content);
+
+    if (!content) {
+      throw new Error("Empty Gemini response");
+    }
+
+    content = content.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    let aiResult;
+    try {
+      aiResult = JSON.parse(content);
+    } catch (e) {
+      console.error("❌ Gemini returned invalid JSON:", content);
+      return;
+    }
+
+    proposal.items = (aiResult.items || []).map(item => ({
+      name: item.name,
+      quantityQuoted: item.quantityQuoted ?? null,
+      pricing: {
+        unitPrice: item.pricing?.unitPrice ?? null,
+        currency: item.pricing?.currency || "INR",
+        total: item.pricing?.total ?? null
+      },
+      media: { images: [] }
+    }));
+
+    proposal.pricingSummary = {
+      subTotal: aiResult.pricingSummary?.subTotal ?? null,
+      tax: {
+        type: "GST",
+        percentage: aiResult.pricingSummary?.tax?.percentage ?? null,
+        amount: aiResult.pricingSummary?.tax?.amount ?? null
+      },
+      grandTotal: aiResult.pricingSummary?.grandTotal ?? null,
+      currency: "INR"
+    };
+
+    proposal.commercialTerms = {
+      deliveryDays: aiResult.commercialTerms?.deliveryDays ?? null,
+      paymentTerms: aiResult.commercialTerms?.paymentTerms ?? null,
+      warranty: aiResult.commercialTerms?.warranty ?? null,
+      quoteValidity: aiResult.commercialTerms?.quoteValidity ?? null
+    };
+
+    proposal.aiExtraction = {
+      confidenceScore: aiResult.confidenceScore ?? 0.9,
+      missingFields: [],
+      notes: "Parsed automatically from vendor email (Gemini)"
+    };
+
+    proposal.status = "PARSED";
+
+    await proposal.save();
+
+    console.log(`✅ AI parsing completed for proposal ${proposalId}`);
+
+  } catch (err) {
+    console.error("❌ Gemini proposal parsing error:", err.message);
+    console.error(err.stack);
   }
-
-  // ✅ Map AI output → Schema
-  proposal.items = (aiResult.items || []).map(item => ({
-    name: item.name,
-    quantityQuoted: item.quantityQuoted,
-    pricing: {
-      unitPrice: item.pricing?.unitPrice,
-      currency: item.pricing?.currency || "INR",
-      total: item.pricing?.total
-    },
-    media: { images: [] }
-  }));
-
-  proposal.pricingSummary = {
-    subTotal: aiResult.pricingSummary?.subTotal,
-    tax: {
-      type: "GST",
-      percentage: aiResult.pricingSummary?.tax?.percentage,
-      amount: aiResult.pricingSummary?.tax?.amount
-    },
-    grandTotal: aiResult.pricingSummary?.grandTotal,
-    currency: "INR"
-  };
-
-  proposal.commercialTerms = {
-    deliveryDays: aiResult.commercialTerms?.deliveryDays,
-    paymentTerms: aiResult.commercialTerms?.paymentTerms,
-    warranty: aiResult.commercialTerms?.warranty,
-    quoteValidity: aiResult.commercialTerms?.quoteValidity
-  };
-
-  proposal.aiExtraction = {
-    confidenceScore: aiResult.confidenceScore || 0.9,
-    missingFields: [],
-    notes: "Parsed automatically from vendor email"
-  };
-
-  proposal.status = "PARSED";
-
-  await proposal.save();
-
-  console.log(`✅ AI parsing completed for proposal ${proposalId}`);
 }
 
 export default parseProposalWithAI;
+

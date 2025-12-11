@@ -16,24 +16,37 @@ const handleGenerate = async () => {
   try {
     const res = await fetch(`${BASE_URL}api/create-rfp`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json"
+      headers: {
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        text: input
-      })
+      body: JSON.stringify({ text: input }),
     });
 
     const data = await res.json();
-     setRfpData(data.rfp); 
-    console.log("AI RFP:", data);
-    toast.success("RFP created successfully!")
-    setOpenModal(true);
-    setInput("")
 
-  } catch (err) {
-    console.error("Error generating RFP:", err);
+    // ✅ IMPORTANT CHECK
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to generate RFP");
+    }
+
+    // ✅ Success path only
+    setRfpData(data.rfp);
+    console.log("AI RFP:", data);
+    toast.success("RFP created successfully!");
+    setOpenModal(true);
+    setInput("");
+
+  } catch (err: unknown) {
+  let message = "Something went wrong";
+
+  if (err instanceof Error) {
+    message = err.message;
   }
+
+  console.error("Error generating RFP:", err);
+  toast.error(message);
+}
+
 };
 
 
